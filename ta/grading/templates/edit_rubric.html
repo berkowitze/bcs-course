@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Rubric Editor</title>
+    <script src="/static/jquery.js"></script>
+    <link href="/static/jsoneditor.min.css" rel="stylesheet" type="text/css">
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon.ico">
+    <script src="/static/jsoneditor.min.js"></script>
+    <script type="text/javascript" src="{{ url_for('static', filename='jquery.js') }}"></script>
+    <script type="text/javascript" src="{{ url_for('static', filename='rubric_editor.js') }}"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='codemirror.css') }}">
+    <script src="{{ url_for('static', filename='codemirror.js') }}"></script>
+    <script type="text/javascript" src="{{ url_for('static', filename='python.js') }}"></script>
+    {% assets "scss_rubric_edit" %}
+    <link rel="stylesheet" href="{{ ASSET_URL }}">
+    {% endassets %}
+    </script>
+</head>
+<body>
+    <a href="/">Go to grading app</a>
+    <p>Note: You may edit the rubric without using the Python updater until a handin has been extracted for that question.</p>
+    <main class='edit-mode'>
+        <div class='rubric-selection'>
+            <select autofocus id='rubric-select' onchange='selectRubric()'>
+                <option>Select a question</option>
+                {% for asgn in asgns %}
+                {% for question in asgn._json["questions"] %}
+                <option data-full_asgn="{{ asgn.full_name }}" data-asgn="{{ asgn.mini_name }}" value="{{ loop.index }}">{{ asgn.full_name }} Question {{ loop.index }}</option>
+                {% endfor %}
+                {% endfor %}
+            </select>
+            <span id='rubric-info'></span>
+            <button class='btn' disabled id='create-button' onclick='createRubric(this)'>Create rubric</button>
+            <button id='save-button' onclick='pushUpdate()' disabled>Save</button>
+        </div>
+        <p id='mode'></p>
+        <div id="jsoneditor"></div>
+        <div id='updater'>
+            <textarea id='thingy'># ** DO NOT REMOVE IMPORTS **
+# ** DO NOT CHANGE FUNCTION NAME OR SIGNATURE **
+# ** DO NOT ADD NEW IMPORTS **
+# ** DO NOT USE open FUNCTION **
+
+from custom_types import Rubric
+
+def updater(rubric: Rubric) -> None:
+  """ function that updates a rubric by *modifying* that rubric
+  for example:
+  items = rubric['rubric']['Functionality']['rubric_items']
+  items[0]['rubric_options'][0]['point-val'] = 6
+  """
+  pass</textarea>
+          <p id='errors'></p>
+          <button onclick='previewUpdate(this)'>Check & Preview updater</button>
+          <button onclick='updateRubrics(this)'>Update all rubrics</button>
+      </div>
+  </main>
+</body>
+</html>

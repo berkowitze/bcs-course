@@ -1,0 +1,33 @@
+#!/bin/sh
+"exec" "`dirname $0`/../ta/venv/bin/python" "$0" "$@"
+
+# Usage: clear-comments <path-to-json-rubric>
+# given a JSON file path, clears all comments from that
+# file (assuming it has a top level _COMMENTS tag and
+# a comments key under each category)
+
+import sys
+import os
+import json
+from helpers import json_edit
+from custom_types import Rubric
+
+
+def clear_comments(comments):
+    comments['un_given'] = []
+    comments['given'] = []
+
+
+if len(sys.argv) != 2:
+    print('Script must be run with filepath as argument')
+    sys.exit(0)
+
+fp = sys.argv[1]
+if not os.path.exists(fp):
+    raise OSError('File not found.')
+
+data: Rubric
+with json_edit(fp) as data:
+    clear_comments(data['comments'])
+    for cat in data['rubric']:
+        clear_comments(data['rubric'][cat]['comments'])

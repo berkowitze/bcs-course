@@ -1,0 +1,15 @@
+*
+!.gitignore
+!classes.py
+!course_customization.py
+!grading_app.py
+!helpers.py
+!custom_types.py
+!data
+!grades
+!static
+!templates
+!todo
+!update_rubric.py
+!rubric_schema.json
+!data/rubrics

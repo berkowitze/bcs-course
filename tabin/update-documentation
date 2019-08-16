@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+
+execDir=$(dirname "$0");
+p="$execDir/../ta/documentation"
+make -C $(realpath $p) html

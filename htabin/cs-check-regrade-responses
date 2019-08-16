@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+baseDir=$(realpath `dirname $0`/..);
+pyBin=$(echo "$baseDir/ta/venv/bin" | xargs realpath);
+"$pyBin/python" "$baseDir/hta/grading/regrading/check_responses.py" --quiet

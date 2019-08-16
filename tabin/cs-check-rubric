@@ -1,0 +1,15 @@
+#!/bin/sh
+"exec" "`dirname $0`/../ta/venv/bin/python" "$0" "$@"
+
+import sys
+import json
+import os
+from helpers import rubric_check
+
+try:
+    rubric_path = sys.argv[1]
+except IndexError:
+    print('Usage: python check_rubric.py <path-to-rubric.json>')
+    sys.exit(1)
+
+rubric_check(rubric_path)

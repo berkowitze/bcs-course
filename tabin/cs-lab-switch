@@ -1,0 +1,86 @@
+#!/bin/sh
+"exec" "`dirname $0`/../ta/venv/bin/python" "$0" "$@"
+
+import os
+import sys
+import json
+import tabulate
+from typing import List, Set
+
+import prompts
+from helpers import line_read, locked_file, json_edit
+import config
+
+lab_base = os.path.join(CONFIG.base_path, 'ta/grading/data/labs')
+lab_data_path = os.path.join(lab_base, 'lab-data.json')
+lab_roster_path = os.path.join(lab_base, 'roster.json')
+
+with locked_file(lab_data_path) as f:
+    SESSION_LIST: List[str] = json.load(f)
+
+with locked_file(lab_roster_path) as f:
+    data = json.load(f)
+    LAB_LIST = sorted(data.keys())
+
+students_path = os.path.join(CONFIG.base_path, 'ta/groups/students.csv')
+lines = line_read(students_path, delim=',')
+students = []
+ls = []
+for i, (login, email, name) in enumerate(lines):
+    students.append(login)
+    ls.append([i + 1, login, name])
+
+print(tabulate.tabulate(ls, headers=('#', 'Login', 'Name')))
+
+print('')
+print('Who are you switching?')
+print('Type the number next to their login')
+inp = prompts.int_prompt(len(students))
+if inp is None:
+    print('Exiting...')
+    sys.exit(1)
+
+student = students[int(inp) - 1]
+print('')
+print(f'Running lab switch for {student}.')
+
+print('Temporary or permanent lab switch?')
+res = prompts.opt_prompt(['Temporary', 'Permanent'])
+if res is None:
+    print('Exiting...')
+    sys.exit(1)
+
+temp_switch = (res == 1)
+
+if temp_switch:
+    print('Which lab are you switching?')
+    sess = prompts.opt_prompt(LAB_LIST)
+    print(sess)
+    if sess is None:
+        print('Exiting...')
+        sys.exit(1)
+
+    to_switch = [sess]
+else:
+    to_switch = list(range(1, len(LAB_LIST) + 1))
+
+print('Switch to which session?')
+switch_to = prompts.opt_prompt(SESSION_LIST, pre_string='\t')
+if switch_to is None:
+    print('Exiting...')
+    sys.exit(1)
+
+with json_edit(lab_roster_path) as data:
+    for lab_n in to_switch:
+        key = f'lab{str(lab_n).zfill(2)}'
+        lab = data[key]
+        for session in lab:
+            lab[session] = list(set(s for s in lab[session] if s != student))
+
+        switch_key = f'session{switch_to}'
+        lab[switch_key].append(student)
+
+if temp_switch:
+    print(f'Lab {sess} switch for {student} to session {switch_to} complete.')
+else:
+    print(f'Permenant switch for {student} to session {switch_to} complete.')

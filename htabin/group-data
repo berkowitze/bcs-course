@@ -1,0 +1,133 @@
+#!/bin/sh
+"exec" "`dirname $0`/../ta/venv/bin/python" "$0" "$@";
+
+# Notes:
+#  - if running from ssh/fastx, make sure to run "kinit" first
+#
+# author: zkirsche Aug 2018
+# edited by eberkowi Aug 2018
+#   - reduced terminal output
+#   - reorganized functions to take group names instead of login CSV files
+#   email: eliberkowitz@gmail.com
+
+import cgi
+import os
+import re
+import smtplib
+import subprocess
+import sys
+
+from helpers import locked_file, BASE_PATH
+from io import StringIO
+from typing import List, Tuple
+
+if len(sys.argv) != 4:
+    print('Usage: group-data <group> <csv | txt> <path-to-output>')
+    sys.exit(1)
+
+csv = (sys.argv[2] == 'csv')
+
+
+def login_to_email(login: str) -> Tuple[str, bool]:
+    """
+
+    convert CS login to Brown University email
+
+    :param login: the brown cs login to query
+    :type login: str
+    :returns: the brown email, or an error string that the email can't
+              be found, and a boolaen indicating if the search succeeded
+    :rtype: Tuple[str, bool]
+
+    """
+    try:
+        login = login.lower().strip()
+        userdata = subprocess.check_output(["ldapsearch", "-Q", f"cn={login}"])
+        ldap_email = re.search("mail:(.*)", userdata.decode(), re.MULTILINE)
+        if ldap_email:
+            email: str = ldap_email.group(1).strip()
+            return email, True
+        else:
+            if login == 'qa0111':
+                return 'elias_berkowitz@brown.edu', True
+            else:
+                return f'Unknown login {login} (email HTAs)', False
+
+    except subprocess.CalledProcessError:
+        return f'Warning: ldap search for {login} failed', False
+
+
+def login_to_name(login: str) -> Tuple[str, bool]:
+    """
+
+    Convert CS login to full name
+
+    :param login: CS login to convert
+    :type login: str
+    :returns: full name of the student with the input login
+              and a boolean indicating whether or not the conversion succeeded
+    :rtype: Tuple[str, bool]
+
+    """
+    login = login.lower().strip()
+    try:
+        userdata = subprocess.check_output(['ldapsearch', '-Q', f'cn={login}'])
+        ldap_name = re.search('gecos:(.*)', userdata.decode(), re.MULTILINE)
+        if ldap_name:
+            return ldap_name.group(1).strip().split(',')[0].strip(), True
+        else:
+            return f'No name for {login} (email HTAs)', False
+    except Exception:
+        return f'Warning: ldap search for {login} failed', False
+
+
+def get_logins_from_group(group_name: str) -> List[str]:
+    """
+
+    Get all the logins of the members of the input group
+
+    :param group_name: a group name (i.e. cs-0111ta)
+    :type group_name: str
+    :returns: A list of the usernames of the members of that group
+              (uses the better-members command)
+              repeated usernames are deleted
+    :rtype: List[str]
+    :raises subprocess.CalledProcessError: Usually invalid group name
+
+    """
+    cmd = [f'{BASE_PATH}/htabin/better-members', group_name]
+    sp = subprocess.Popen(cmd,
+                          stdout=subprocess.PIPE,
+                          stderr=subprocess.PIPE)
+    out, err = sp.communicate()
+    if out and not err:
+        # success
+        return out.decode().strip().split(' ')
+    elif not out and not err:
+        # no members in group
+        return []
+    else:
+        # probably invalid group name
+        raise subprocess.CalledProcessError(1, cmd, err)
+
+
+logins = get_logins_from_group(sys.argv[1])
+if csv:
+    data = []
+    for login in logins:
+        email = login_to_email(login)[0]
+        name = login_to_name(login)[0]
+        data.append((login, email, name))
+
+    S = ''
+    for d in data:
+        S += f'{d[0]},{d[1]},{d[2]}\n'
+
+    with locked_file(sys.argv[3], 'w') as f:
+        f.write(S)
+else:
+    S = ''
+    for l in logins:
+        S += f'{l}\n'
+    with locked_file(sys.argv[3], 'w') as f:
+        f.write(S)
